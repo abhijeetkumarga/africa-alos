@@ -1,10 +1,8 @@
+#!/usr/bin/env python3
+
 import os
 import subprocess
-from os.path import basename, dirname
-from os.path import join as pjoin
-import copy
-from ruamel.yaml import YAML
-#from filenames import final_mesh
+# from ruamel.yaml import YAML
 
 
 def run_command(command, work_dir):
@@ -25,51 +23,51 @@ def make_directories(year, WORKDIR):
 def download_files(year, final_mesh, WORKDIR, OUTDIR, PATH, OUTPATH):
     for j, l_j in enumerate(final_mesh[0:3]):
         fileactual = l_j
-        filename = "ftp://ftp.eorc.jaxa.jp/pub/ALOS-2/ext1/PALSAR-2_MSC/25m_MSC/{}/{}_{}_MOS_F02DAR.tar.gz".format(year, fileactual, year[-2:])
+        filename = "ftp://ftp.eorc.jaxa.jp/pub/ALOS-2/ext1/PALSAR-2_MSC/25m_MSC/{}/{}_{}_MOS_F02DAR.tar.gz".format(
+            year, fileactual, year[-2:]
+        )
         local_file = "{}_{}_MOS_F02DAR.tar.gz".format(fileactual, year[-2:])
         try:
             run_command(['wget', filename], PATH)
-            download_mesh.append(fileactual)
+            # download_mesh.append(fileactual)
             run_command(['mkdir', fileactual], PATH)
             run_command(['mkdir', fileactual], OUTPATH)
             run_command(['tar', '-xvf', local_file, '-C', fileactual], PATH)
             run_command(['rm', local_file], PATH)
-            combine_cog(PATH,OUTPATH,year,fileactual)
+            combine_cog(PATH, OUTPATH, year, fileactual)
         except subprocess.CalledProcessError:
             print('File does not exist')
 
 
-def combine_cog(PATH,OUTPATH,year,fileactual):
-
+def combine_cog(PATH, OUTPATH, year, fileactual):
     hhfname = []
     hvfname = []
     lincifname = []
     maskfname = []
     datefname = []
 
-    gtiff_path = os.path.join(PATH,fileactual)
+    gtiff_path = os.path.join(PATH, fileactual)
     gtiff_abs_path = os.path.abspath(gtiff_path)
-    
-    outtiff_path = os.path.join(OUTPATH,fileactual)
+
+    outtiff_path = os.path.join(OUTPATH, fileactual)
     outtiff_abs_path = os.path.abspath(outtiff_path)
 
-
-    for path,subdirs,files in os.walk(gtiff_abs_path):
+    for path, subdirs, files in os.walk(gtiff_abs_path):
         for fname in files:
             if '_HH_' in fname and not fname.endswith('.hdr'):
-                in_filename = os.path.join(path,fname)
+                in_filename = os.path.join(path, fname)
                 hhfname.append(in_filename)
             if '_HV_' in fname and not fname.endswith('.hdr'):
-                in_filename = os.path.join(path,fname)
+                in_filename = os.path.join(path, fname)
                 hvfname.append(fname)
             if '_linci_' in fname and not fname.endswith('.hdr'):
-                in_filename = os.path.join(path,fname)
+                in_filename = os.path.join(path, fname)
                 lincifname.append(fname)
             if '_mask_' in fname and not fname.endswith('.hdr'):
-                in_filename = os.path.join(path,fname)
+                in_filename = os.path.join(path, fname)
                 maskfname.append(fname)
             if '_date_' in fname and not fname.endswith('.hdr'):
-                in_filename = os.path.join(path,fname)
+                in_filename = os.path.join(path, fname)
                 datefname.append(fname)
 
     filehh = open('{}/{}/filehh.txt'.format(PATH, fileactual), "w")
@@ -95,19 +93,43 @@ def combine_cog(PATH,OUTPATH,year,fileactual):
     bands = ['hh', 'hv', 'linci', 'date', 'mask']
 
     for band in bands:
-        run_command(['gdalbuildvrt','-input_file_list','{}/file{}.txt'.format(gtiff_abs_path,fileactual,band),'{}/{}_{}.vrt'.format(gtiff_abs_path,fileactual,band)],gtiff_abs_path)
-        run_command(['rio','cogeo','create','--nodata','0','{}/{}_{}.vrt'.format(gtiff_abs_path,fileactual,band),'{}/{}_{}.tif'.format(outtiff_abs_path,fileactual,band)],gtiff_abs_path)
+        run_command([
+            'gdalbuildvrt',
+            '-input_file_list',
+            '{}/file{}.txt'.format(
+                gtiff_abs_path,
+                fileactual,
+                band
+            ),
+            '{}/{}_{}.vrt'.format(gtiff_abs_path, fileactual, band)
+        ],
+            gtiff_abs_path
+        )
+        run_command([
+            'rio',
+            'cogeo',
+            'create',
+            '--nodata',
+            '0',
+            '{}/{}_{}.vrt'.format(gtiff_abs_path, fileactual, band),
+            '{}/{}_{}.tif'.format(outtiff_abs_path, fileactual, band)
+        ],
+            gtiff_abs_path
+        )
 
-def write_yaml
+
+def write_yaml():
+    return None
 
 
-final_mesh = ['N00E030', 'N00E035']
-WORKDIR = 'data/download/'
-OUTDIR = 'data/out/'
-year = '2017'
-download_mesh = []
+if __name__ == "__main__":
+    TILE = 'N00E030'
+    WORKDIR = 'data/download/'
+    OUTDIR = 'data/out/'
+    YEAR = '2017'
+    PATH = '/tmp'
+    OUTPATH = '/tmp/out'
 
-make_directories(year, WORKDIR)
+    make_directories(YEAR, WORKDIR)
 
-
-download_files(year, final_mesh, WORKDIR, OUTDIR, PATH, OUTPATH)
+    download_files(YEAR, TILE, WORKDIR, OUTDIR, PATH, OUTPATH)
