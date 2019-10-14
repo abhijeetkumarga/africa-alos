@@ -1,0 +1,10 @@
+version: "3.4"
+services:
+  run:
+    build: .
+    environment:
+      - S3_DESTINATION=example-bucket
+      - SQS_QUEUE=example-queue
+    volumes:
+      - ./:/opt/alos
+    command: /opt/alos/alos_process.py
