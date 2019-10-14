@@ -35,8 +35,11 @@ EW = [
     'E050'
 ]
 
-final_mesh = []
 
-for column in NS:
-    for row in EW:
-        final_mesh.append(column + row)
+def get_mesh():
+    final_mesh = []
+
+    for column in NS:
+        for row in EW:
+            final_mesh.append(column + row)
+    return final_mesh
