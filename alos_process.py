@@ -3,12 +3,17 @@
 import logging
 import os
 import subprocess
+import shutil
 
 from osgeo import gdal
 
 # from ruamel.yaml import YAML
 
 logging.basicConfig(level=logging.DEBUG)
+logging.getLogger('boto3').setLevel(logging.CRITICAL)
+logging.getLogger('botocore').setLevel(logging.CRITICAL)
+logging.getLogger('s3transfer').setLevel(logging.CRITICAL)
+logging.getLogger('urllib3').setLevel(logging.CRITICAL)
 
 
 def run_command(command, work_dir):
@@ -22,6 +27,18 @@ def make_directories(directories):
     for directory in directories:
         if not os.path.exists(directory):
             os.makedirs(directory)
+
+
+def delete_directories(directories):
+    for directory in directories:
+        for the_file in os.listdir(directory):
+            a_file = os.path.join(directory, the_file)
+            if os.path.isfile(a_file):
+                logging.debug("Deleting file: {}".format(a_file))
+                os.unlink(a_file)
+            elif os.path.isdir(a_file):
+                logging.debug("Deleting directory: {}".format(a_file))
+                shutil.rmtree(a_file)
 
 
 def download_files(WORKDIR, OUTDIR, YEAR, TILE):
@@ -107,6 +124,7 @@ def run_one(TILE_STRING, WORKDIR, OUTDIR, S3_DESTINATION):
         combine_cog(WORKDIR, OUTDIR, TILE)
         write_yaml(OUTDIR, YEAR, TILE)
         upload_to_s3(OUTDIR, S3_DESTINATION)
+        delete_directories([WORKDIR, OUTDIR])
         # Assume job success here
         return True
     except Exception as e:
