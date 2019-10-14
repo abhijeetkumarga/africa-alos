@@ -2,9 +2,10 @@
 
 import logging
 import os
-import subprocess
 import shutil
+import subprocess
 
+import boto3
 from osgeo import gdal
 
 # from ruamel.yaml import YAML
@@ -64,6 +65,7 @@ def download_files(WORKDIR, OUTDIR, YEAR, TILE):
 def combine_cog(PATH, OUTPATH, TILE):
     logging.info("Combining GeoTIFFs")
     bands = ['HH', 'HV', 'linci', 'date', 'mask']
+    output_cogs = []
 
     gtiff_abs_path = os.path.abspath(PATH)
     outtiff_abs_path = os.path.abspath(OUTPATH)
@@ -81,6 +83,7 @@ def combine_cog(PATH, OUTPATH, TILE):
         logging.info("Building VRT for {} with {} files found".format(
             band, len(all_files)))
         vrt_path = os.path.join(gtiff_abs_path, '{}.vrt'.format(band))
+        cog_filename = os.path.join(gtiff_abs_path, '{}/{}_{}.tif'.format(outtiff_abs_path, TILE, band))
         vrt_options = gdal.BuildVRTOptions()
         gdal.BuildVRT(
             vrt_path,
@@ -95,21 +98,32 @@ def combine_cog(PATH, OUTPATH, TILE):
             '--nodata',
             '0',
             vrt_path,
-            '{}/{}_{}.tif'.format(outtiff_abs_path, TILE, band)
+            cog_filename
         ],
             gtiff_abs_path
         )
 
+        output_cogs.append(cog_filename)
+
 
 def write_yaml(OUTDIR, YEAR, TILE):
     logging.warning("Write_yaml not implemented.")
+
+    # Note that this needs to return a file path to the metadata
     return None
 
 
-def upload_to_s3(OUTDIR, S3_DESTINATION):
+def upload_to_s3(OUTDIR, S3_DESTINATION, path, files):
     logging.warning("Upload to S3 not yet complete")
+    s3r = boto3.resource('s3')
     if S3_DESTINATION:
         logging.info("Uploading to {}".format(S3_DESTINATION))
+        # Upload data
+        for out_file in files:
+            data = open(out_file, 'rb')
+            key = "{}/{}".format(path, os.path.basename(out_file))
+            logging.info("Uploading geotiff to {}".format(key))
+            s3r.Bucket(S3_DESTINATION).put_object(Key=key, Body=data)
     else:
         logging.warning("Not uploading to S3, because the bucket isn't set.")
 
@@ -121,9 +135,9 @@ def run_one(TILE_STRING, WORKDIR, OUTDIR, S3_DESTINATION):
     try:
         make_directories([WORKDIR, OUTDIR])
         download_files(WORKDIR, OUTDIR, YEAR, TILE)
-        combine_cog(WORKDIR, OUTDIR, TILE)
-        write_yaml(OUTDIR, YEAR, TILE)
-        upload_to_s3(OUTDIR, S3_DESTINATION)
+        list_of_cogs = combine_cog(WORKDIR, OUTDIR, TILE)
+        metadata_file = write_yaml(OUTDIR, YEAR, TILE)
+        upload_to_s3(OUTDIR, S3_DESTINATION, TILE_STRING, list_of_cogs + [metadata_file])
         delete_directories([WORKDIR, OUTDIR])
         # Assume job success here
         return True

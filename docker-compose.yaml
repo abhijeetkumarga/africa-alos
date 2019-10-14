@@ -1,9 +1,9 @@
 version: "3.4"
 services:
-  run:
+  alos:
     build: .
     environment:
-      - S3_DESTINATION=example-bucket
+      - S3_DESTINATION=test-results-deafrica-staging-west/alos
       - SQS_QUEUE=alex-alive-queue
       - AWS_DEFAULT_REGION=us-west-2
       - AWS_ACCESS_KEY_ID=${ODC_ACCESS_KEY}
