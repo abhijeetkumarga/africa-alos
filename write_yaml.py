@@ -39,8 +39,8 @@ def write_yaml(OUTDIR, YEAR, TILE):
     geo_ref_points = get_ref_points(OUTDIR, YEAR, TILE)
     coords = get_coords(OUTDIR, YEAR, TILE)
     today = datetime.datetime.today()
-    format = "%Y-%m-%dT%H:%M:%S"
-    creation_date = today.strftime(format)
+    formtod = "%Y-%m-%dT%H:%M:%S"
+    creation_date = today.strftime(formtod)
     metadata_doc = {
         'id': str(odc_uuid('alos', '1', [], YEAR=YEAR,TILE=TILE)),
         'creation_dt': creation_date,
@@ -89,8 +89,4 @@ def write_yaml(OUTDIR, YEAR, TILE):
 
     # Note that this needs to return a file path to the metadata
     return yaml_filename
-
-
-
-
 
