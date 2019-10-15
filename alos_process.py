@@ -70,7 +70,7 @@ def download_files(WORKDIR, OUTDIR, YEAR, TILE):
 
     try:
         if not os.path.exists(tar_file):
-            run_command(['wget', ftp_location], WORKDIR)
+            run_command(['wget', '-q', ftp_location], WORKDIR)
         else:
             logging.info("Skipping download, file already exists")
         make_directories([os.path.join(OUTDIR, TILE)])
@@ -114,13 +114,13 @@ def combine_cog(PATH, OUTPATH, TILE):
         if band in ['HH', 'HV']:
             resampling = 'average'
 
-        cog_translate(
-            vrt_path,
-            cog_filename,
-            cog_profile,
-            overview_level=5,
-            overview_resampling=resampling
-        )
+        # cog_translate(
+        #     vrt_path,
+        #     cog_filename,
+        #     cog_profile,
+        #     overview_level=5,
+        #     overview_resampling=resampling
+        # )
 
         output_cogs.append(cog_filename)
 
@@ -152,7 +152,7 @@ def upload_to_s3(OUTDIR, S3_BUCKET, path, files):
         for out_file in files:
             data = open(out_file, 'rb')
             key = "{}/{}".format(path, os.path.basename(out_file))
-            logging.info("Uploading file {out_file} to {}".format(key))
+            logging.info("Uploading file {} to S3://{}/{}".format(out_file, S3_BUCKET, key))
             s3r.Bucket(S3_BUCKET).put_object(Key=key, Body=data)
     else:
         logging.warning("Not uploading to S3, because the bucket isn't set.")
@@ -167,12 +167,12 @@ def run_one(TILE_STRING, WORKDIR, OUTDIR, S3_BUCKET, S3_PATH):
         path = S3_PATH + '/' + path
 
     try:
-        make_directories([WORKDIR, OUTDIR])
-        download_files(WORKDIR, OUTDIR, YEAR, TILE)
+        # make_directories([WORKDIR, OUTDIR])
+        # download_files(WORKDIR, OUTDIR, YEAR, TILE)
         list_of_cogs = combine_cog(WORKDIR, OUTDIR, TILE)
         metadata_file = write_yaml(OUTDIR, YEAR, TILE)
         upload_to_s3(OUTDIR, S3_BUCKET, path, list_of_cogs + [metadata_file])
-        delete_directories([WORKDIR, OUTDIR])
+        # delete_directories([WORKDIR, OUTDIR])
         # Assume job success here
         return True
     except Exception as e:
@@ -182,9 +182,10 @@ def run_one(TILE_STRING, WORKDIR, OUTDIR, S3_BUCKET, S3_PATH):
 
 if __name__ == "__main__":
     logging.info("Starting default process")
-    TILE_STRING = '2017/N00E030'
-    S3_BUCKET = None
+    TILE_STRING = '2017/N10E050'
+    S3_BUCKET = 'test-results-deafrica-staging-west'
+    S3_PATH = 'alos'
     WORKDIR = 'data/download'
     OUTDIR = 'data/out'
 
-    run_one(TILE_STRING, WORKDIR, OUTDIR, S3_BUCKET)
+    run_one(TILE_STRING, WORKDIR, OUTDIR, S3_BUCKET, S3_PATH)
