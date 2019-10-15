@@ -14,6 +14,11 @@ from rio_cogeo.cogeo import cog_translate
 
 from ruamel.yaml import YAML
 
+from get_uuid import odc_uuid
+import datetime
+import rasterio
+
+
 logging.basicConfig(level=logging.INFO)
 
 logging.getLogger('boto3').setLevel(logging.CRITICAL)
@@ -76,14 +81,13 @@ def download_files(WORKDIR, OUTDIR, YEAR, TILE):
             run_command(['wget', '-q', ftp_location], WORKDIR)
         else:
             logging.info("Skipping download, file already exists")
-        make_directories([os.path.join(OUTDIR, TILE)])
         logging.info("Untarring file")
         run_command(['tar', '-xf', filename], WORKDIR)
     except subprocess.CalledProcessError:
         print('File does not exist')
 
 
-def combine_cog(PATH, OUTPATH, TILE):
+def combine_cog(PATH, OUTPATH, TILE, YEAR):
     logging.info("Combining GeoTIFFs")
     bands = ['HH', 'HV', 'linci', 'date', 'mask']
     output_cogs = []
@@ -104,7 +108,7 @@ def combine_cog(PATH, OUTPATH, TILE):
         logging.info("Building VRT for {} with {} files found".format(
             band, len(all_files)))
         vrt_path = os.path.join(gtiff_abs_path, '{}.vrt'.format(band))
-        cog_filename = os.path.join(outtiff_abs_path, '{}_{}.tif'.format(TILE, band))
+        cog_filename = os.path.join(outtiff_abs_path, '{}_{}_sl_{}_F02DAR.tif'.format(TILE, YEAR[-2:], band))
         vrt_options = gdal.BuildVRTOptions()
         gdal.BuildVRT(
             vrt_path,
@@ -131,12 +135,79 @@ def combine_cog(PATH, OUTPATH, TILE):
     return output_cogs
 
 
+def get_ref_points(OUTDIR, YEAR, TILE):
+    datasetpath = os.path.join(OUTDIR, '{}_{}_sl_date_F02DAR.tif'.format(TILE, YEAR[-2:]))
+    dataset = rasterio.open(datasetpath)
+    trans = dataset.transform*(0, 0)
+    return {
+        'll': {'x': trans[0], 'y': trans[1]-5},
+        'lr': {'x': trans[0]+5, 'y': trans[1]-5},
+        'ul': {'x': trans[0], 'y': trans[1]},
+        'ur': {'x': trans[0]+5, 'y': trans[1]},
+    }
+
+
+def get_coords(OUTDIR, YEAR, TILE):
+    datasetpath = os.path.join(OUTDIR, '{}_{}_sl_date_F02DAR.tif'.format(TILE, YEAR[-2:]))
+    dataset = rasterio.open(datasetpath)
+    trans = dataset.transform*(0, 0)
+    return {
+        'll': {'lat': trans[1]-5, 'lon': trans[0]},
+        'lr': {'lat': trans[1]-5, 'lon': trans[0]+5},
+        'ul': {'lat': trans[1], 'lon': trans[0]},
+        'ur': {'lat': trans[1], 'lon': trans[0]+5},
+    }
+
+
 def write_yaml(OUTDIR, YEAR, TILE):
     logging.warning("Write_yaml not implemented.")
     yaml_filename = os.path.join(OUTDIR, "{}_{}.yaml".format(TILE, YEAR))
+    geo_ref_points = get_ref_points(OUTDIR, YEAR, TILE)
+    coords = get_coords(OUTDIR, YEAR, TILE)
+    today = datetime.datetime.today()
+    formtod = "%Y-%m-%dT%H:%M:%S"
+    creation_date = today.strftime(formtod)
     metadata_doc = {
-        "name": "example"
+        'id': str(odc_uuid('alos', '1', [], YEAR=YEAR, TILE=TILE)),
+        'creation_dt': creation_date,
+        'product_type': 'gamma0',
+        'platform': {'code': 'ALOS'},
+        'instrument': {'name': 'PALSAR'},
+        'format': {'name': 'GeoTIFF'},
+        'extent': {
+            'coord': coords,
+            'from_dt': "{}-01-01T00:00:01".format(YEAR),
+            'center_dt': "{}-06-15T11:00:00".format(YEAR),
+            'to_dt': "{}-12-31T23:59:59".format(YEAR),
+                  },
+        'grid_spatial': {
+            'projection': {
+                'geo_ref_points': geo_ref_points,
+                'spatial_reference': 'EPSG:4326',
+                            }
+                        },
+        'image': {
+            'bands': {
+                'hh': {
+                    'path': '{}_{}_sl_HH_F02DAR.tif'.format(TILE, YEAR[-2:]),
+                    },
+                'hv': {
+                    'path': '{}_{}_sl_HV_F02DAR.tif'.format(TILE, YEAR[-2:]),
+                    },
+                'linci': {
+                    'path': '{}_{}_sl_linci_F02DAR.tif'.format(TILE, YEAR[-2:]),
+                    },
+                'mask': {
+                    'path': '{}_{}_sl_mask_F02DAR.tif'.format(TILE, YEAR[-2:]),
+                    },
+                'date': {
+                    'date': '{}_{}_sl_date_F02DAR.tif'.format(TILE, YEAR[-2:]),
+                    }
+            }
+        },
+        'lineage': {'source_datasets': {}},
     }
+
     with open(yaml_filename, 'w') as f:
         yaml = YAML(typ='safe', pure=False)
         yaml.default_flow_style = False
@@ -172,7 +243,7 @@ def run_one(TILE_STRING, WORKDIR, OUTDIR, S3_BUCKET, S3_PATH):
     try:
         make_directories([WORKDIR, OUTDIR])
         download_files(WORKDIR, OUTDIR, YEAR, TILE)
-        list_of_cogs = combine_cog(WORKDIR, OUTDIR, TILE)
+        list_of_cogs = combine_cog(WORKDIR, OUTDIR, TILE, YEAR)
         metadata_file = write_yaml(OUTDIR, YEAR, TILE)
         upload_to_s3(OUTDIR, S3_BUCKET, path, list_of_cogs + [metadata_file])
         delete_directories([WORKDIR, OUTDIR])
