@@ -114,13 +114,13 @@ def combine_cog(PATH, OUTPATH, TILE):
         if band in ['HH', 'HV']:
             resampling = 'average'
 
-        # cog_translate(
-        #     vrt_path,
-        #     cog_filename,
-        #     cog_profile,
-        #     overview_level=5,
-        #     overview_resampling=resampling
-        # )
+        cog_translate(
+            vrt_path,
+            cog_filename,
+            cog_profile,
+            overview_level=5,
+            overview_resampling=resampling
+        )
 
         output_cogs.append(cog_filename)
 
@@ -167,12 +167,12 @@ def run_one(TILE_STRING, WORKDIR, OUTDIR, S3_BUCKET, S3_PATH):
         path = S3_PATH + '/' + path
 
     try:
-        # make_directories([WORKDIR, OUTDIR])
-        # download_files(WORKDIR, OUTDIR, YEAR, TILE)
+        make_directories([WORKDIR, OUTDIR])
+        download_files(WORKDIR, OUTDIR, YEAR, TILE)
         list_of_cogs = combine_cog(WORKDIR, OUTDIR, TILE)
         metadata_file = write_yaml(OUTDIR, YEAR, TILE)
         upload_to_s3(OUTDIR, S3_BUCKET, path, list_of_cogs + [metadata_file])
-        # delete_directories([WORKDIR, OUTDIR])
+        delete_directories([WORKDIR, OUTDIR])
         # Assume job success here
         return True
     except Exception as e:
