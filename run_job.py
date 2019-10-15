@@ -15,7 +15,8 @@ logging.getLogger('urllib3').setLevel(logging.CRITICAL)
 
 
 SQS_QUEUE = os.environ.get("SQS_QUEUE", 'not-implemented')
-S3_DESTINATION = os.environ.get("S3_DESTINATION", 'not-implemented')
+S3_BUCKET = os.environ.get("S3_BUCKET", 'not-implemented')
+S3_PATH = os.environ.get("S3_PATH", None)
 
 VISIBILITYTIMEOUT = os.environ.get('VISIBILITYTIMEOUT', 1000)
 
@@ -25,6 +26,7 @@ queue = sqs.get_queue_by_name(QueueName=SQS_QUEUE)
 
 
 def count_messages():
+    queue.load()
     logging.info("There are {} messages on the queue.".format(queue.attributes["ApproximateNumberOfMessages"]))
     return int(queue.attributes["ApproximateNumberOfMessages"])
 
@@ -45,7 +47,7 @@ if __name__ == "__main__":
             # Bailing on an empty queue!
             sys.exit(0)
         logging.info("Found tile to process: {}".format(TILE_STRING))
-        success = run_one(TILE_STRING, 'data/download', 'data/out', S3_DESTINATION)
+        success = run_one(TILE_STRING, 'data/download', 'data/out', S3_BUCKET, S3_PATH)
         if success:
             logging.info("Job completed")
             message.delete()
