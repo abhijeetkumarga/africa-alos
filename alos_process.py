@@ -4,9 +4,6 @@ import logging
 import os
 import shutil
 import subprocess
-import uuid
-import yaml
-from datetime import timedelta
 
 import boto3
 from osgeo import gdal
@@ -17,15 +14,6 @@ from ruamel.yaml import YAML
 from get_uuid import odc_uuid
 import datetime
 import rasterio
-
-
-logging.basicConfig(level=logging.INFO)
-
-logging.getLogger('boto3').setLevel(logging.CRITICAL)
-logging.getLogger('botocore').setLevel(logging.CRITICAL)
-logging.getLogger('s3transfer').setLevel(logging.CRITICAL)
-logging.getLogger('urllib3').setLevel(logging.CRITICAL)
-logging.getLogger('rasterio').setLevel(logging.CRITICAL)
 
 
 # COG profile
@@ -40,6 +28,18 @@ cog_profile = {
     'zlevel': 9,
     'nodata': 0
 }
+
+
+def setup_logging():
+    logging.basicConfig(level=logging.INFO)
+    logging.getLogger('boto3').setLevel(logging.CRITICAL)
+    logging.getLogger('botocore').setLevel(logging.CRITICAL)
+    logging.getLogger('s3transfer').setLevel(logging.CRITICAL)
+    logging.getLogger('urllib3').setLevel(logging.CRITICAL)
+    logging.getLogger('rasterio').setLevel(logging.CRITICAL)
+
+
+setup_logging()
 
 
 def run_command(command, work_dir):
@@ -138,35 +138,33 @@ def combine_cog(PATH, OUTPATH, TILE, YEAR):
 def get_ref_points(OUTDIR, YEAR, TILE):
     datasetpath = os.path.join(OUTDIR, '{}_{}_sl_date_F02DAR.tif'.format(TILE, YEAR[-2:]))
     dataset = rasterio.open(datasetpath)
-    trans = dataset.transform*(0, 0)
+    trans = dataset.transform * (0, 0)
     return {
-        'll': {'x': trans[0], 'y': trans[1]-5},
-        'lr': {'x': trans[0]+5, 'y': trans[1]-5},
+        'll': {'x': trans[0], 'y': trans[1] - 5},
+        'lr': {'x': trans[0] + 5, 'y': trans[1] - 5},
         'ul': {'x': trans[0], 'y': trans[1]},
-        'ur': {'x': trans[0]+5, 'y': trans[1]},
+        'ur': {'x': trans[0] + 5, 'y': trans[1]},
     }
 
 
 def get_coords(OUTDIR, YEAR, TILE):
     datasetpath = os.path.join(OUTDIR, '{}_{}_sl_date_F02DAR.tif'.format(TILE, YEAR[-2:]))
     dataset = rasterio.open(datasetpath)
-    trans = dataset.transform*(0, 0)
+    trans = dataset.transform * (0, 0)
     return {
-        'll': {'lat': trans[1]-5, 'lon': trans[0]},
-        'lr': {'lat': trans[1]-5, 'lon': trans[0]+5},
+        'll': {'lat': trans[1] - 5, 'lon': trans[0]},
+        'lr': {'lat': trans[1] - 5, 'lon': trans[0] + 5},
         'ul': {'lat': trans[1], 'lon': trans[0]},
-        'ur': {'lat': trans[1], 'lon': trans[0]+5},
+        'ur': {'lat': trans[1], 'lon': trans[0] + 5},
     }
 
 
 def write_yaml(OUTDIR, YEAR, TILE):
-    logging.warning("Write_yaml not implemented.")
+    logging.warning("Writing yaml.")
     yaml_filename = os.path.join(OUTDIR, "{}_{}.yaml".format(TILE, YEAR))
     geo_ref_points = get_ref_points(OUTDIR, YEAR, TILE)
     coords = get_coords(OUTDIR, YEAR, TILE)
-    today = datetime.datetime.today()
-    formtod = "%Y-%m-%dT%H:%M:%S"
-    creation_date = today.strftime(formtod)
+    creation_date = datetime.datetime.today().strftime("%Y-%m-%dT%H:%M:%S")
     metadata_doc = {
         'id': str(odc_uuid('alos', '1', [], YEAR=YEAR, TILE=TILE)),
         'creation_dt': creation_date,
@@ -179,30 +177,30 @@ def write_yaml(OUTDIR, YEAR, TILE):
             'from_dt': "{}-01-01T00:00:01".format(YEAR),
             'center_dt': "{}-06-15T11:00:00".format(YEAR),
             'to_dt': "{}-12-31T23:59:59".format(YEAR),
-                  },
+        },
         'grid_spatial': {
             'projection': {
                 'geo_ref_points': geo_ref_points,
                 'spatial_reference': 'EPSG:4326',
-                            }
-                        },
+            }
+        },
         'image': {
             'bands': {
                 'hh': {
                     'path': '{}_{}_sl_HH_F02DAR.tif'.format(TILE, YEAR[-2:]),
-                    },
+                },
                 'hv': {
                     'path': '{}_{}_sl_HV_F02DAR.tif'.format(TILE, YEAR[-2:]),
-                    },
+                },
                 'linci': {
                     'path': '{}_{}_sl_linci_F02DAR.tif'.format(TILE, YEAR[-2:]),
-                    },
+                },
                 'mask': {
                     'path': '{}_{}_sl_mask_F02DAR.tif'.format(TILE, YEAR[-2:]),
-                    },
+                },
                 'date': {
-                    'date': '{}_{}_sl_date_F02DAR.tif'.format(TILE, YEAR[-2:]),
-                    }
+                    'path': '{}_{}_sl_date_F02DAR.tif'.format(TILE, YEAR[-2:]),
+                }
             }
         },
         'lineage': {'source_datasets': {}},
@@ -213,7 +211,6 @@ def write_yaml(OUTDIR, YEAR, TILE):
         yaml.default_flow_style = False
         yaml.dump(metadata_doc, f)
 
-    # Note that this needs to return a file path to the metadata
     return yaml_filename
 
 

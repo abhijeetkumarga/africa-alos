@@ -5,14 +5,10 @@ import os
 import logging
 
 from filenames import get_mesh
+from alos_process import setup_logging
 
 
-logging.basicConfig(level=logging.DEBUG)
-logging.getLogger('boto3').setLevel(logging.CRITICAL)
-logging.getLogger('botocore').setLevel(logging.CRITICAL)
-logging.getLogger('s3transfer').setLevel(logging.CRITICAL)
-logging.getLogger('urllib3').setLevel(logging.CRITICAL)
-
+setup_logging()
 
 LIMIT = int(os.environ.get('LIMIT', 5))
 SQS_QUEUE = os.environ.get("SQS_QUEUE", 'alex-alive-queue')

@@ -5,14 +5,10 @@ import sys
 import logging
 import boto3
 
-from alos_process import run_one
+from alos_process import run_one, setup_logging
 
-logging.basicConfig(level=logging.DEBUG)
-logging.getLogger('boto3').setLevel(logging.CRITICAL)
-logging.getLogger('botocore').setLevel(logging.CRITICAL)
-logging.getLogger('s3transfer').setLevel(logging.CRITICAL)
-logging.getLogger('urllib3').setLevel(logging.CRITICAL)
 
+setup_logging()
 
 SQS_QUEUE = os.environ.get("SQS_QUEUE", 'not-implemented')
 S3_BUCKET = os.environ.get("S3_BUCKET", 'not-implemented')
