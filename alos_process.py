@@ -69,11 +69,20 @@ def delete_directories(directories):
 
 
 def download_files(WORKDIR, OUTDIR, YEAR, TILE):
-    filename = "{}_{}_MOS_F02DAR.tar.gz".format(TILE, YEAR[-2:])
+    if int(YEAR) > 2010:
+        filename = "{}_{}_MOS_F02DAR.tar.gz".format(TILE, YEAR[-2:])
+    else:
+        filename = "{}_{}_MOS.tar.gz".format(TILE, YEAR[-2:])
+
     logging.info("Downloading file: {}".format(filename))
-    ftp_location = "ftp://ftp.eorc.jaxa.jp/pub/ALOS-2/ext1/PALSAR-2_MSC/25m_MSC/{}/{}".format(
-        YEAR, filename
-    )
+    if int(YEAR) > 2010:
+        ftp_location = "ftp://ftp.eorc.jaxa.jp/pub/ALOS-2/ext1/PALSAR-2_MSC/25m_MSC/{}/{}".format(
+            YEAR, filename
+        )
+    else:
+        ftp_location = "ftp://ftp.eorc.jaxa.jp/pub/ALOS/ext1/PALSAR_MSC/25m_MSC/{}/{}".format(
+            YEAR, filename
+        )
     tar_file = os.path.join(WORKDIR, filename)
 
     try:
@@ -100,15 +109,24 @@ def combine_cog(PATH, OUTPATH, TILE, YEAR):
         all_files = []
         for path, subdirs, files in os.walk(gtiff_abs_path):
             for fname in files:
-                if '_{}_'.format(band) in fname and not fname.endswith('.hdr'):
-                    in_filename = os.path.join(path, fname)
-                    all_files.append(in_filename)
+                if int(YEAR) > 2010:
+                    if '_{}_'.format(band) in fname and not fname.endswith('.hdr'):
+                        in_filename = os.path.join(path, fname)
+                        all_files.append(in_filename)
+                else:
+                    if '_{}'.format(band) in fname and not fname.endswith('.hdr'):
+                        in_filename = os.path.join(path, fname)
+                        all_files.append(in_filename)
+
 
         # Create the VRT
         logging.info("Building VRT for {} with {} files found".format(
             band, len(all_files)))
         vrt_path = os.path.join(gtiff_abs_path, '{}.vrt'.format(band))
-        cog_filename = os.path.join(outtiff_abs_path, '{}_{}_sl_{}_F02DAR.tif'.format(TILE, YEAR[-2:], band))
+        if int(YEAR)>2010:
+            cog_filename = os.path.join(outtiff_abs_path, '{}_{}_sl_{}_F02DAR.tif'.format(TILE, YEAR[-2:], band))
+        else:
+            cog_filename = os.path.join(outtiff_abs_path, '{}_{}_sl_{}.tif'.format(TILE, YEAR[-2:], band))
         vrt_options = gdal.BuildVRTOptions()
         gdal.BuildVRT(
             vrt_path,
@@ -118,13 +136,14 @@ def combine_cog(PATH, OUTPATH, TILE, YEAR):
 
         # Default to nearest resampling
         resampling = 'nearest'
-        if band in ['HH', 'HV']:
+        if band in ['HH', 'HV', 'linci']:
             resampling = 'average'
 
         cog_translate(
             vrt_path,
             cog_filename,
             cog_profile,
+            config={"GDAL_TIFF_OVR_BLOCKSIZE": "512"},
             overview_level=5,
             overview_resampling=resampling
         )
@@ -136,7 +155,10 @@ def combine_cog(PATH, OUTPATH, TILE, YEAR):
 
 
 def get_ref_points(OUTDIR, YEAR, TILE):
-    datasetpath = os.path.join(OUTDIR, '{}_{}_sl_date_F02DAR.tif'.format(TILE, YEAR[-2:]))
+    if int(YEAR)>2010:
+        datasetpath = os.path.join(OUTDIR, '{}_{}_sl_date_F02DAR.tif'.format(TILE, YEAR[-2:]))
+    else:
+        datasetpath = os.path.join(OUTDIR, '{}_{}_sl_date.tif'.format(TILE, YEAR[-2:]))
     dataset = rasterio.open(datasetpath)
     trans = dataset.transform * (0, 0)
     return {
@@ -148,7 +170,10 @@ def get_ref_points(OUTDIR, YEAR, TILE):
 
 
 def get_coords(OUTDIR, YEAR, TILE):
-    datasetpath = os.path.join(OUTDIR, '{}_{}_sl_date_F02DAR.tif'.format(TILE, YEAR[-2:]))
+    if int(YEAR)>2010:
+        datasetpath = os.path.join(OUTDIR, '{}_{}_sl_date_F02DAR.tif'.format(TILE, YEAR[-2:]))
+    else:
+        datasetpath = os.path.join(OUTDIR, '{}_{}_sl_date.tif'.format(TILE, YEAR[-2:]))
     dataset = rasterio.open(datasetpath)
     trans = dataset.transform * (0, 0)
     return {
@@ -165,12 +190,26 @@ def write_yaml(OUTDIR, YEAR, TILE):
     geo_ref_points = get_ref_points(OUTDIR, YEAR, TILE)
     coords = get_coords(OUTDIR, YEAR, TILE)
     creation_date = datetime.datetime.today().strftime("%Y-%m-%dT%H:%M:%S")
+    if int(YEAR) > 2010:
+        hhpath = '{}_{}_sl_HH_F02DAR.tif'.format(TILE, YEAR[-2:])
+        hvpath = '{}_{}_sl_HV_F02DAR.tif'.format(TILE, YEAR[-2:])
+        lincipath = '{}_{}_sl_linci_F02DAR.tif'.format(TILE, YEAR[-2:])
+        maskpath = '{}_{}_sl_mask_F02DAR.tif'.format(TILE, YEAR[-2:])
+        datepath = '{}_{}_sl_date_F02DAR.tif'.format(TILE, YEAR[-2:])
+        launch_date = "2014-05-24"
+    else:
+        hhpath = '{}_{}_sl_HH.tif'.format(TILE, YEAR[-2:])
+        hvpath = '{}_{}_sl_HV.tif'.format(TILE, YEAR[-2:])
+        lincipath = '{}_{}_sl_linci.tif'.format(TILE, YEAR[-2:])
+        maskpath = '{}_{}_sl_mask.tif'.format(TILE, YEAR[-2:])
+        datepath = '{}_{}_sl_date.tif'.format(TILE, YEAR[-2:])
+        launch_date = "2006-01-26"
     metadata_doc = {
         'id': str(odc_uuid('alos', '1', [], YEAR=YEAR, TILE=TILE)),
         'creation_dt': creation_date,
         'product_type': 'gamma0',
-        'platform': {'code': 'ALOS'},
-        'instrument': {'name': 'PALSAR'},
+        'platform': {'code': 'ALOS/ALOS-2'},
+        'instrument': {'name': 'PALSAR/PALSAR-2'},
         'format': {'name': 'GeoTIFF'},
         'extent': {
             'coord': coords,
@@ -187,23 +226,27 @@ def write_yaml(OUTDIR, YEAR, TILE):
         'image': {
             'bands': {
                 'hh': {
-                    'path': '{}_{}_sl_HH_F02DAR.tif'.format(TILE, YEAR[-2:]),
+                    'path': hhpath,
                 },
                 'hv': {
-                    'path': '{}_{}_sl_HV_F02DAR.tif'.format(TILE, YEAR[-2:]),
+                    'path': hvpath,
                 },
                 'linci': {
-                    'path': '{}_{}_sl_linci_F02DAR.tif'.format(TILE, YEAR[-2:]),
+                    'path': lincipath,
                 },
                 'mask': {
-                    'path': '{}_{}_sl_mask_F02DAR.tif'.format(TILE, YEAR[-2:]),
+                    'path': maskpath,
                 },
                 'date': {
-                    'path': '{}_{}_sl_date_F02DAR.tif'.format(TILE, YEAR[-2:]),
+                    'path': datepath,
                 }
             }
         },
         'lineage': {'source_datasets': {}},
+        'property': {
+            'launchdate': launch_date,
+            'cf': '83.0 dB',
+        }
     }
 
     with open(yaml_filename, 'w') as f:
@@ -253,7 +296,7 @@ def run_one(TILE_STRING, WORKDIR, OUTDIR, S3_BUCKET, S3_PATH):
 
 if __name__ == "__main__":
     logging.info("Starting default process")
-    TILE_STRING = '2017/N10E050'
+    TILE_STRING = '2017/N00E050'
     S3_BUCKET = 'test-results-deafrica-staging-west'
     S3_PATH = 'alos'
     WORKDIR = 'data/download'
