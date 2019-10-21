@@ -10,7 +10,7 @@ RUN mkdir -p /opt/alos
 
 WORKDIR /opt/alos
 
-ADD alos_process.py run_job.py /opt/alos/
+ADD alos_process.py run_job.py get_uuid.py /opt/alos/
 
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8

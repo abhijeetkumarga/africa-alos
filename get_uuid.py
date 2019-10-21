@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import uuid
 from uuid import UUID
 from typing import Sequence

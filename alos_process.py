@@ -31,7 +31,10 @@ cog_profile = {
 
 
 def setup_logging():
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.INFO,
+    format='%(asctime)s %(levelname)-8s %(message)s',
+    datefmt='%m-%d %H:%M'                    
+    )
     logging.getLogger('boto3').setLevel(logging.CRITICAL)
     logging.getLogger('botocore').setLevel(logging.CRITICAL)
     logging.getLogger('s3transfer').setLevel(logging.CRITICAL)
@@ -156,36 +159,36 @@ def combine_cog(PATH, OUTPATH, TILE, YEAR):
 
 def get_ref_points(OUTDIR, YEAR, TILE):
     if int(YEAR)>2010:
-        datasetpath = os.path.join(OUTDIR, '{}_{}_sl_date_F02DAR.tif'.format(TILE, YEAR[-2:]))
+        datasetpath = os.path.join(OUTDIR, '{}_{}_sl_HH_F02DAR.tif'.format(TILE, YEAR[-2:]))
     else:
-        datasetpath = os.path.join(OUTDIR, '{}_{}_sl_date.tif'.format(TILE, YEAR[-2:]))
+        datasetpath = os.path.join(OUTDIR, '{}_{}_sl_HH.tif'.format(TILE, YEAR[-2:]))
     dataset = rasterio.open(datasetpath)
-    trans = dataset.transform * (0, 0)
+    bounds = dataset.bounds
     return {
-        'll': {'x': trans[0], 'y': trans[1] - 5},
-        'lr': {'x': trans[0] + 5, 'y': trans[1] - 5},
-        'ul': {'x': trans[0], 'y': trans[1]},
-        'ur': {'x': trans[0] + 5, 'y': trans[1]},
+        'll': {'x': bounds[0], 'y': bounds[1]},
+        'lr': {'x': bounds[2], 'y': bounds[1]},
+        'ul': {'x': bounds[0], 'y': bounds[3]},
+        'ur': {'x': bounds[2], 'y': bounds[3]},
     }
 
 
 def get_coords(OUTDIR, YEAR, TILE):
     if int(YEAR)>2010:
-        datasetpath = os.path.join(OUTDIR, '{}_{}_sl_date_F02DAR.tif'.format(TILE, YEAR[-2:]))
+        datasetpath = os.path.join(OUTDIR, '{}_{}_sl_HH_F02DAR.tif'.format(TILE, YEAR[-2:]))
     else:
-        datasetpath = os.path.join(OUTDIR, '{}_{}_sl_date.tif'.format(TILE, YEAR[-2:]))
+        datasetpath = os.path.join(OUTDIR, '{}_{}_sl_HH.tif'.format(TILE, YEAR[-2:]))
     dataset = rasterio.open(datasetpath)
-    trans = dataset.transform * (0, 0)
+    bounds = dataset.bounds
     return {
-        'll': {'lat': trans[1] - 5, 'lon': trans[0]},
-        'lr': {'lat': trans[1] - 5, 'lon': trans[0] + 5},
-        'ul': {'lat': trans[1], 'lon': trans[0]},
-        'ur': {'lat': trans[1], 'lon': trans[0] + 5},
+        'll': {'lat': bounds[1], 'lon': bounds[0]},
+        'lr': {'lat': bounds[1], 'lon': bounds[2]},
+        'ul': {'lat': bounds[3], 'lon': bounds[0]},
+        'ur': {'lat': bounds[3], 'lon': bounds[2]},
     }
 
 
 def write_yaml(OUTDIR, YEAR, TILE):
-    logging.warning("Writing yaml.")
+    logging.info("Writing yaml.")
     yaml_filename = os.path.join(OUTDIR, "{}_{}.yaml".format(TILE, YEAR))
     geo_ref_points = get_ref_points(OUTDIR, YEAR, TILE)
     coords = get_coords(OUTDIR, YEAR, TILE)
@@ -258,7 +261,7 @@ def write_yaml(OUTDIR, YEAR, TILE):
 
 
 def upload_to_s3(OUTDIR, S3_BUCKET, path, files):
-    logging.warning("Upload to S3 not yet complete")
+    logging.info("Commencing S3 upload")
     s3r = boto3.resource('s3')
     if S3_BUCKET:
         logging.info("Uploading to {}".format(S3_BUCKET))
@@ -296,7 +299,7 @@ def run_one(TILE_STRING, WORKDIR, OUTDIR, S3_BUCKET, S3_PATH):
 
 if __name__ == "__main__":
     logging.info("Starting default process")
-    TILE_STRING = '2017/N00E050'
+    TILE_STRING = '2017/N25W020'
     S3_BUCKET = 'test-results-deafrica-staging-west'
     S3_PATH = 'alos'
     WORKDIR = 'data/download'

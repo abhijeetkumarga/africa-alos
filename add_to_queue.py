@@ -10,7 +10,7 @@ from alos_process import setup_logging
 
 setup_logging()
 
-LIMIT = int(os.environ.get('LIMIT', 5))
+LIMIT = int(os.environ.get('LIMIT', 10000))
 SQS_QUEUE = os.environ.get("SQS_QUEUE", 'alex-alive-queue')
 
 sqs = boto3.resource('sqs')
@@ -40,4 +40,4 @@ def get_items(LIMIT=9999, START=0, YEARS=['2017']):
 
 if __name__ == "__main__":
     logging.info("Starting to add to queue")
-    get_items(LIMIT=LIMIT, START=100, YEARS=['2007'])
+    get_items(LIMIT=LIMIT, START=0, YEARS=['2017'])
